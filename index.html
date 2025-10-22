@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- <title>Stock Chart Pattern Drawing Tool</title> -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        
+        .toolbar {
+            background: #34495e;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .btn.drawing {
+            background: #e74c3c;
+        }
+        
+        .btn.drawing:hover {
+            background: #c0392b;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .chart-container {
+            padding: 20px;
+            min-height: 500px;
+        }
+        
+        #chart {
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            cursor: crosshair;
+        }
+        
+        .status {
+            background: #ecf0f1;
+            padding: 10px 20px;
+            border-top: 1px solid #bdc3c7;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .message {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- <div class="header">
+            <h1>Stock Chart Pattern Drawing Tool</h1>
+            <p>Web-based version - Compatible with all macOS versions</p>
+        </div> -->
+        
+        <div class="toolbar">
+            <input type="file" id="dataFile" class="file-input" accept=".csv">
+            <button class="btn" onclick="document.getElementById('dataFile').click()">Load Market Data</button>
+            
+            <button class="btn" id="drawBtn" onclick="toggleDrawing()" disabled>Enable Drawing Mode</button>
+            
+            <button class="btn" id="clearBtn" onclick="clearPattern()" disabled>Clear Pattern</button>
+            
+            <input type="file" id="patternFile" class="file-input" accept=".csv">
+            <button class="btn" id="importBtn" onclick="document.getElementById('patternFile').click()" disabled>Import Pattern</button>
+            
+            <button class="btn" id="exportBtn" onclick="exportPattern()" disabled>Export Pattern</button>
+        </div>
+        
+        <div class="chart-container">
+            <div class="info">
+                <strong>Instructions:</strong>
+                <ol>
+                    <li>Click "Load Market Data" and select your CSV file (e.g., 1Day.csv)</li>
+                    <li>Click "Enable Drawing Mode" to start drawing patterns (canvas will become blank)</li>
+                    <li>Click and drag on the blank canvas to draw patterns</li>
+                    <li>Click "Disable Drawing Mode" to return to market data view</li>
+                    <li>Click "Export Pattern" to save your patterns as CSV</li>
+                    <li>Use "Import Pattern" to load previously saved patterns</li>
+                </ol>
+            </div>
+            
+            <div id="message" class="message"></div>
+            
+            <canvas id="chart" width="800" height="400"></canvas>
+        </div>
+        
+        <div class="status" id="status">
+            Ready - Load market data to begin
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let marketData = [];
+        let patternStrokes = [];
+        let isDrawing = false;
+        let currentStroke = [];
+        let drawingEnabled = false;
+        
+        // Chart setup
+        const canvas = document.getElementById('chart');
+        const ctx = canvas.getContext('2d');
+        
+        // Chart dimensions
+        const marginLeft = 60;
+        const marginRight = 20;
+        const marginTop = 20;
+        const marginBottom = 60;
+        const chartWidth = canvas.width - marginLeft - marginRight;
+        const chartHeight = canvas.height - marginTop - marginBottom;
+        
+        // Data ranges
+        let minPrice = 0, maxPrice = 1000;
+        let minTime = 0, maxTime = 100;
+        
+        // Initialize chart
+        setupChart();
+        
+        function setupChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw title
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Stock Chart Pattern Drawing Tool', canvas.width / 2, 20);
+            
+            // Draw initial message
+            ctx.fillStyle = '#7f8c8d';
+            ctx.font = '14px Arial';
+            ctx.fillText('Load market data to begin', canvas.width / 2, canvas.height / 2);
+        }
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+        
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            messageEl.style.display = 'block';
+            
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        // File input handlers
+        document.getElementById('dataFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                loadMarketData(file);
+            }
+        });
+        
+        document.getElementById('patternFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                loadPattern(file);
+            }
+        });
+        
+        async function loadMarketData(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/load_data', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    marketData = result.data;
+                    drawChart();
+                    updateStatus(`Market data loaded: ${result.count} points`);
+                    showMessage('Market data loaded successfully!', 'success');
+                    
+                    // Enable buttons
+                    document.getElementById('drawBtn').disabled = false;
+                    document.getElementById('importBtn').disabled = false;
+                } else {
+                    showMessage(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error loading data: ${error.message}`, 'error');
+            }
+        }
+        
+        function drawChart() {
+            if (!marketData.length) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Calculate data ranges
+            const prices = marketData.map(d => d.close);
+            minPrice = Math.min(...prices);
+            maxPrice = Math.max(...prices);
+            
+            // Add padding
+            const priceRange = maxPrice - minPrice;
+            minPrice -= priceRange * 0.05;
+            maxPrice += priceRange * 0.05;
+            
+            minTime = 0;
+            maxTime = marketData.length - 1;
+            
+            // Draw chart area
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(marginLeft, marginTop, chartWidth, chartHeight);
+            
+            // Draw price line
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            for (let i = 0; i < marketData.length; i++) {
+                const x = timeToX(i);
+                const y = priceToY(marketData[i].close);
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+            
+            // Draw axes
+            drawAxes();
+            
+            // Draw patterns
+            drawPatterns();
+        }
+        
+        function drawAxes() {
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+            
+            // Y-axis
+            ctx.beginPath();
+            ctx.moveTo(marginLeft, marginTop);
+            ctx.lineTo(marginLeft, marginTop + chartHeight);
+            ctx.stroke();
+            
+            // X-axis
+            ctx.beginPath();
+            ctx.moveTo(marginLeft, marginTop + chartHeight);
+            ctx.lineTo(marginLeft + chartWidth, marginTop + chartHeight);
+            ctx.stroke();
+            
+            // Y-axis labels
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'right';
+            
+            for (let i = 0; i <= 5; i++) {
+                const price = minPrice + (maxPrice - minPrice) * i / 5;
+                const y = priceToY(price);
+                
+                // Draw tick
+                ctx.beginPath();
+                ctx.moveTo(marginLeft - 5, y);
+                ctx.lineTo(marginLeft + 5, y);
+                ctx.stroke();
+                
+                // Draw label
+                ctx.fillText(`$${price.toFixed(2)}`, marginLeft - 10, y + 3);
+            }
+            
+            // X-axis labels
+            ctx.textAlign = 'center';
+            const numTicks = Math.min(10, marketData.length);
+            for (let i = 0; i < marketData.length; i += Math.floor(marketData.length / numTicks)) {
+                const x = timeToX(i);
+                
+                // Draw tick
+                ctx.beginPath();
+                ctx.moveTo(x, marginTop + chartHeight - 5);
+                ctx.lineTo(x, marginTop + chartHeight + 5);
+                ctx.stroke();
+                
+                // Draw label
+                const timeStr = new Date(marketData[i].datetime).toLocaleTimeString('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                ctx.fillText(timeStr, x, marginTop + chartHeight + 20);
+            }
+        }
+        
+        function drawPatterns() {
+            // Draw completed strokes
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 2;
+            
+            for (const stroke of patternStrokes) {
+                if (stroke.length > 1) {
+                    ctx.beginPath();
+                    for (let i = 0; i < stroke.length; i++) {
+                        const point = stroke[i];
+                        let x, y;
+                        
+                        if (drawingEnabled) {
+                            // In drawing mode, use stored coordinates directly
+                            x = point[2]; // stored x coordinate
+                            y = point[3]; // stored y coordinate
+                        } else {
+                            // In normal mode, convert from time/price to coordinates
+                            x = timeToX(findClosestTimeIndex(point[0]));
+                            y = priceToY(point[1]);
+                        }
+                        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    ctx.stroke();
+                }
+            }
+            
+            // Draw current stroke
+            if (currentStroke.length > 1) {
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                
+                for (let i = 0; i < currentStroke.length; i++) {
+                    const point = currentStroke[i];
+                    let x, y;
+                    
+                    if (drawingEnabled) {
+                        // In drawing mode, use stored coordinates directly
+                        x = point[2]; // stored x coordinate
+                        y = point[3]; // stored y coordinate
+                    } else {
+                        // In normal mode, convert from time/price to coordinates
+                        x = timeToX(findClosestTimeIndex(point[0]));
+                        y = priceToY(point[1]);
+                    }
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+        }
+        
+        function timeToX(time) {
+            return marginLeft + (time - minTime) / (maxTime - minTime) * chartWidth;
+        }
+        
+        function priceToY(price) {
+            return marginTop + chartHeight - (price - minPrice) / (maxPrice - minPrice) * chartHeight;
+        }
+        
+        function xToTime(x) {
+            return minTime + (x - marginLeft) / chartWidth * (maxTime - minTime);
+        }
+        
+        function yToPrice(y) {
+            return minPrice + (marginTop + chartHeight - y) / chartHeight * (maxPrice - minPrice);
+        }
+        
+        function formatDateTime(date) {
+            // Format as MM/DD/YYYY HH:MM to match the expected CSV format
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const day = date.getDate().toString().padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            
+            return `${month}/${day}/${year} ${hours}:${minutes}`;
+        }
+        
+        function findClosestTimeIndex(datetimeStr) {
+            if (!marketData.length) return 0;
+            
+            const targetTime = new Date(datetimeStr);
+            let closestIndex = 0;
+            let minDiff = Math.abs(new Date(marketData[0].datetime) - targetTime);
+            
+            for (let i = 1; i < marketData.length; i++) {
+                const diff = Math.abs(new Date(marketData[i].datetime) - targetTime);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestIndex = i;
+                }
+            }
+            
+            return closestIndex;
+        }
+        
+        function toggleDrawing() {
+            drawingEnabled = !drawingEnabled;
+            const btn = document.getElementById('drawBtn');
+            
+            if (drawingEnabled) {
+                btn.textContent = 'Disable Drawing Mode';
+                btn.classList.add('drawing');
+                canvas.style.cursor = 'crosshair';
+                document.getElementById('clearBtn').disabled = false;
+                document.getElementById('exportBtn').disabled = false;
+                updateStatus('Drawing mode enabled - Click and drag to draw patterns');
+                
+                // Clear canvas for drawing mode
+                clearCanvasForDrawing();
+            } else {
+                btn.textContent = 'Enable Drawing Mode';
+                btn.classList.remove('drawing');
+                canvas.style.cursor = 'default';
+                updateStatus('Drawing mode disabled');
+                
+                // Redraw the chart with market data
+                drawChart();
+            }
+        }
+        
+        function clearCanvasForDrawing() {
+            // Clear the canvas and show a blank drawing area
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw a simple border
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(marginLeft, marginTop, chartWidth, chartHeight);
+            
+            // Draw title
+            ctx.fillStyle = '#2c3e50';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Drawing Mode - Draw your patterns here', canvas.width / 2, 20);
+            
+            // Draw patterns if any exist
+            drawPatterns();
+        }
+        
+        function clearPattern() {
+            if (confirm('Are you sure you want to clear all patterns?')) {
+                patternStrokes = [];
+                currentStroke = [];
+                
+                if (drawingEnabled) {
+                    clearCanvasForDrawing();
+                } else {
+                    drawChart();
+                }
+                updateStatus('All patterns cleared');
+            }
+        }
+        
+        async function exportPattern() {
+            if (!patternStrokes.length) {
+                showMessage('No pattern to export. Please draw a pattern first.', 'error');
+                return;
+            }
+            
+            try {
+                // Convert pattern data to the format expected by the backend
+                // Remove canvas coordinates (x, y) and keep only time/price data
+                const exportData = patternStrokes.map(stroke => 
+                    stroke.map(point => [point[0], point[1]]) // Keep only [timeStr, price]
+                );
+                
+                const response = await fetch('/api/save_pattern', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        pattern: exportData
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Download file
+                    const blob = new Blob([result.content], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'pattern.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    showMessage('Pattern exported successfully!', 'success');
+                } else {
+                    showMessage(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error exporting pattern: ${error.message}`, 'error');
+            }
+        }
+        
+        async function loadPattern(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/api/load_pattern', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Convert imported pattern data to include canvas coordinates
+                    patternStrokes = result.pattern.map(stroke => 
+                        stroke.map(point => {
+                            // point is [timeStr, price]
+                            // We need to add canvas coordinates [timeStr, price, x, y]
+                            let x, y;
+                            
+                            if (marketData.length) {
+                                // Convert time/price to canvas coordinates
+                                const timeIndex = findClosestTimeIndex(point[0]);
+                                x = timeToX(timeIndex);
+                                y = priceToY(point[1]);
+                            } else {
+                                // If no market data, use estimated coordinates
+                                x = marginLeft + chartWidth / 2; // Center horizontally
+                                y = priceToY(point[1]); // Use price for vertical position
+                            }
+                            
+                            return [point[0], point[1], x, y];
+                        })
+                    );
+                    
+                    if (drawingEnabled) {
+                        clearCanvasForDrawing();
+                    } else {
+                        drawChart();
+                    }
+                    showMessage('Pattern imported successfully!', 'success');
+                    updateStatus(`Pattern imported with ${patternStrokes.length} strokes`);
+                } else {
+                    showMessage(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error loading pattern: ${error.message}`, 'error');
+            }
+        }
+        
+        // Mouse events
+        canvas.addEventListener('mousedown', function(e) {
+            if (!drawingEnabled) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (x >= marginLeft && x <= marginLeft + chartWidth &&
+                y >= marginTop && y <= marginTop + chartHeight) {
+                
+                isDrawing = true;
+                currentStroke = [];
+                
+                // Store both canvas coordinates and time/price data
+                let timeStr, priceVal;
+                
+                if (marketData.length) {
+                    const timeVal = xToTime(x);
+                    priceVal = yToPrice(y);
+                    
+                    if (timeVal >= 0 && timeVal < marketData.length) {
+                        const dt = new Date(marketData[Math.floor(timeVal)].datetime);
+                        timeStr = formatDateTime(dt);
+                    } else {
+                        timeStr = formatDateTime(new Date());
+                    }
+                } else {
+                    // In drawing mode without market data, use current time and estimated price
+                    timeStr = formatDateTime(new Date());
+                    priceVal = yToPrice(y);
+                }
+                
+                // Store: [timeStr, price, x, y]
+                currentStroke.push([timeStr, priceVal, x, y]);
+            }
+        });
+        
+        canvas.addEventListener('mousemove', function(e) {
+            if (!drawingEnabled || !isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (x >= marginLeft && x <= marginLeft + chartWidth &&
+                y >= marginTop && y <= marginTop + chartHeight) {
+                
+                // Store both canvas coordinates and time/price data
+                let timeStr, priceVal;
+                
+                if (marketData.length) {
+                    const timeVal = xToTime(x);
+                    priceVal = yToPrice(y);
+                    
+                    if (timeVal >= 0 && timeVal < marketData.length) {
+                        const dt = new Date(marketData[Math.floor(timeVal)].datetime);
+                        timeStr = formatDateTime(dt);
+                    } else {
+                        timeStr = formatDateTime(new Date());
+                    }
+                } else {
+                    // In drawing mode without market data, use current time and estimated price
+                    timeStr = formatDateTime(new Date());
+                    priceVal = yToPrice(y);
+                }
+                
+                // Store: [timeStr, price, x, y]
+                currentStroke.push([timeStr, priceVal, x, y]);
+                
+                if (drawingEnabled) {
+                    clearCanvasForDrawing();
+                } else {
+                    drawChart();
+                }
+            }
+        });
+        
+        canvas.addEventListener('mouseup', function(e) {
+            if (!drawingEnabled || !isDrawing) return;
+            
+            isDrawing = false;
+            
+            if (currentStroke.length > 1) {
+                patternStrokes.push([...currentStroke]);
+            }
+            
+            currentStroke = [];
+            
+            if (drawingEnabled) {
+                clearCanvasForDrawing();
+            } else {
+                drawChart();
+            }
+        });
+    </script>
+</body>
+</html>
