@@ -7,7 +7,7 @@ import csv
 import json
 import os
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 import io
 import base64
 
@@ -124,7 +124,7 @@ data_handler = WebDataHandler()
 @app.route('/')
 def index():
     """Main page."""
-    return render_template('index.html')
+    return send_from_directory('.', 'index.html')
 
 @app.route('/api/load_data', methods=['POST'])
 def load_data():
@@ -213,9 +213,6 @@ def load_pattern():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    # Create templates directory if it doesn't exist
-    os.makedirs('templates', exist_ok=True)
-    
     print("Starting Web-based Stock Chart Pattern Drawing Tool...")
     print("Open your browser and go to: http://localhost:8080")
     print("Press Ctrl+C to stop the server")

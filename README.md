@@ -1,15 +1,16 @@
 # Stock Chart Pattern Drawing Tool
 
-A desktop application for drawing patterns on stock charts and exporting/importing them as CSV files with the same structure as your market data.
+A web-based application for drawing patterns on stock charts and exporting/importing them as CSV files with the same structure as your market data.
 
 ## Features
 
 - **Drawing:** Click and drag to draw freehand patterns on the chart
 - **Coordinate mapping:** Convert screen pixels to data coordinates automatically
 - **Pattern storage:** Store each stroke as a separate group in memory
-- **Export format:** CSV with columns stroke_id, datetime, open, high, low, close, volume
+- **Export format:** CSV with columns datetime, open, high, low, close, volume
 - **Import:** Load pattern CSV and redraw all strokes accurately on the current chart view
 - **Compatibility:** CSV structure matches your 1Day.csv format for seamless integration
+- **Cross-platform:** Works on any system with a web browser (no GUI dependencies)
 
 ## Installation
 
@@ -19,13 +20,6 @@ A desktop application for drawing patterns on stock charts and exporting/importi
    pip install -r requirements.txt
    ```
 3. **Run the application:**
-   
-   **Standard Version** (requires macOS 15.1+):
-   ```bash
-   python3 main.py
-   ```
-   
-   **Web Version** (compatible with all macOS versions):
    ```bash
    python3 web_app.py
    ```
@@ -34,26 +28,26 @@ A desktop application for drawing patterns on stock charts and exporting/importi
 ## Usage
 
 ### 1. Load Market Data
-- Click **"Load Market Data"** button or use File → Load Market Data
+- Click **"Load Market Data"** button
 - Select your CSV file (e.g., 1Day.csv)
 - The chart will display your market data
 
 ### 2. Enable Drawing Mode
-- Click **"Enable Drawing"** button or use View → Toggle Drawing Mode
-- The chart title will turn green indicating drawing mode is active
+- Click **"Enable Drawing Mode"** button
+- The canvas will clear and show a blank drawing area
 
 ### 3. Draw Patterns
-- Click and drag on the chart to draw patterns
+- Click and drag on the canvas to draw patterns
 - Each continuous stroke is stored as a separate pattern
 - Release mouse to complete a stroke
 
 ### 4. Export Patterns
-- Click **"Export Pattern"** button or use File → Export Pattern
-- Choose filename and location
-- Patterns are saved as CSV with stroke_id column for stroke identification
+- Click **"Export Pattern"** button
+- The CSV file will be downloaded automatically
+- Patterns are saved as CSV with datetime and price data
 
 ### 5. Import Patterns
-- Click **"Import Pattern"** button or use File → Import Pattern
+- Click **"Import Pattern"** button
 - Select a previously exported pattern CSV
 - Patterns will be redrawn on the chart
 

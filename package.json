@@ -1,0 +1,20 @@
+{
+  "name": "stock-chart-pattern-drawing-tool",
+  "version": "1.0.0",
+  "description": "Web-based Stock Chart Pattern Drawing Tool",
+  "main": "api/index.py",
+  "scripts": {
+    "dev": "python3 web_app.py",
+    "build": "echo 'No build step required'"
+  },
+  "keywords": [
+    "stock",
+    "chart",
+    "pattern",
+    "drawing",
+    "trading",
+    "web"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}

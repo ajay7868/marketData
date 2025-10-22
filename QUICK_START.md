@@ -1,10 +1,8 @@
 # Quick Start Guide
 
-## For macOS Users (Compatibility Issue)
+## Web-Based Stock Chart Pattern Drawing Tool
 
-If you get the error: `macOS 15 (1507) or later required, have instead 15 (1506) !`
-
-**Use the Web Version instead:**
+This application uses a web-based interface that works on all systems without GUI compatibility issues.
 
 ```bash
 python3 web_app.py
@@ -12,7 +10,7 @@ python3 web_app.py
 
 Then open your browser and go to: http://localhost:8080
 
-This version uses Flask web framework and works on all macOS versions without any GUI compatibility issues.
+This version uses Flask web framework and works on all operating systems without any GUI compatibility issues.
 
 ## Quick Usage
 
@@ -54,8 +52,9 @@ This version uses Flask web framework and works on all macOS versions without an
 
 ## File Structure
 
-- `web_app.py` - Web application (use this one)
+- `web_app.py` - Web application
 - `templates/index.html` - Web interface
 - `1Day.csv` - Your sample data
+- `requirements.txt` - Dependencies (Flask only)
 
-The web version provides the same functionality as the standard version but runs in your browser, avoiding all macOS GUI compatibility issues.
+The web version provides full functionality and runs in your browser, avoiding all GUI compatibility issues.
